@@ -130,10 +130,27 @@ public class DictionaryConnection {
      * @throws DictConnectionException If the connection was interrupted or the messages don't match their expected value.
      */
     public synchronized Collection<Database> getDatabaseList() throws DictConnectionException {
-
+    	System.out.println("in getDatabaseList() 123");
         if (!databaseMap.isEmpty()) return databaseMap.values();
-
-        // TODO Add your code here
+        this.output.println("SHOW DB");
+        try{
+        	String in;
+        	in = this.input.readLine();
+        	if(!in.startsWith("110")) {
+        		throw new Exception("There was a problem with the server");
+        	}
+        	while((in = this.input.readLine()) != null) {
+        		if(in.equals(".")){
+        			return databaseMap.values();
+        		}
+        		String[] dbStrings = in.split(" ");
+        		String dbName = dbStrings[0];
+        		String dbDescription = dbStrings[1];
+        		databaseMap.put(dbName, new Database(dbName, dbDescription));
+        	}
+        } catch (Exception e){
+        	throw new DictConnectionException("Encountered an error in obtaining the list of databases: " + e.getMessage());
+        }
 
         return databaseMap.values();
     }
