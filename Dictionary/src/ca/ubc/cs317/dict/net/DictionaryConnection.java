@@ -5,9 +5,8 @@ import ca.ubc.cs317.dict.model.Database;
 import ca.ubc.cs317.dict.model.Definition;
 import ca.ubc.cs317.dict.model.MatchingStrategy;
 
-import java.io.BufferedReader;
-import java.io.PrintWriter;
-import java.net.Socket;
+import java.io.*;
+import java.net.*;
 import java.util.*;
 
 /**
@@ -32,8 +31,20 @@ public class DictionaryConnection {
      * don't match their expected value.
      */
     public DictionaryConnection(String host, int port) throws DictConnectionException {
-
-        // TODO Add your code here
+        try{
+            socket = new Socket(host, port);
+            output = new PrintWriter(socket.getOutputStream(), true);
+            input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            String in = input.readLine();
+            if(!in.startsWith("220")){
+                throw new DictConnectionException("Could not Connect.  Please try again.");        
+            } else{
+                System.out.println("Sucessfully connected to " + host + " on port: " + port);
+            }
+            System.out.println(in);
+        } catch(Exception e) {
+            throw new DictConnectionException("Something went wrong with the connetion: " + e.getMessage(), e);
+        }
     }
 
     /** Establishes a new connection with a DICT server using an explicit host, with the default DICT port number, and
@@ -52,7 +63,25 @@ public class DictionaryConnection {
      *
      */
     public synchronized void close() {
-
+        System.out.println("Terminating connection to dict server");
+        this.output.println("QUIT");
+        try{
+        String in;
+            while((in = this.input.readLine()) !=null){
+                System.out.println(in);
+            }
+        } catch(Exception e){
+            System.out.println("got an exception");
+        }
+        try{
+            this.socket.close();
+            this.input.close();
+            this.output.close();
+        } catch(Exception e){
+            //TODO what should I do with this exception?
+            System.out.println("There was a problem disconnecting O.o");
+        }
+        System.out.println("Connection terminated");
         // TODO Add your code here
     }
 
