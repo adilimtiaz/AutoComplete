@@ -41,7 +41,6 @@ public class DictionaryConnection {
             } else{
                 System.out.println("Sucessfully connected to " + host + " on port: " + port);
             }
-            System.out.println(in);
         } catch(Exception e) {
             throw new DictConnectionException("Something went wrong with the connetion: " + e.getMessage(), e);
         }
@@ -65,14 +64,6 @@ public class DictionaryConnection {
     public synchronized void close() {
         System.out.println("Terminating connection to dict server");
         this.output.println("QUIT");
-        try{
-        String in;
-            while((in = this.input.readLine()) !=null){
-                System.out.println(in);
-            }
-        } catch(Exception e){
-            System.out.println("got an exception");
-        }
         try{
             this.socket.close();
             this.input.close();
@@ -130,7 +121,6 @@ public class DictionaryConnection {
      * @throws DictConnectionException If the connection was interrupted or the messages don't match their expected value.
      */
     public synchronized Collection<Database> getDatabaseList() throws DictConnectionException {
-    	System.out.println("in getDatabaseList() 123");
         if (!databaseMap.isEmpty()) return databaseMap.values();
         this.output.println("SHOW DB");
         try{
@@ -143,9 +133,8 @@ public class DictionaryConnection {
         		if(in.equals(".")){
         			return databaseMap.values();
         		}
-        		String[] dbStrings = in.split(" ");
-        		String dbName = dbStrings[0];
-        		String dbDescription = dbStrings[1];
+        		String dbName = in.substring(0, in.indexOf(" "));
+        		String dbDescription = in.substring(in.indexOf(" ") + 1, in.length());
         		databaseMap.put(dbName, new Database(dbName, dbDescription));
         	}
         } catch (Exception e){
@@ -161,10 +150,32 @@ public class DictionaryConnection {
      * @throws DictConnectionException If the connection was interrupted or the messages don't match their expected value.
      */
     public synchronized Set<MatchingStrategy> getStrategyList() throws DictConnectionException {
+    	System.out.println("in getStrategyList()");
         Set<MatchingStrategy> set = new LinkedHashSet<>();
-
-        // TODO Add your code here
-
+        this.output.println("SHOW STRAT");
+        try{
+        	String in;
+        	//check 250 success response
+        	in = this.input.readLine();
+        	if(!in.startsWith("250")) {
+        		throw new Exception("There was a problem with the server");
+        	}
+        	//check 111 response indicating # of responses found
+        	in = this.input.readLine();
+        	if(!in.startsWith("111")) {
+        		throw new Exception("there are currently no matching strategies available");
+        	}
+        	while((in = this.input.readLine()) != null) {
+        		if(in.equals(".")){
+        			return set;
+        		}
+        		String strategyName = in.substring(0, in.indexOf(" "));
+        		String strategyDescription = in.substring(in.indexOf(" ") + 1, in.length());
+        		set.add(new MatchingStrategy(strategyName, strategyDescription));
+        	}
+        } catch (Exception e){
+        	throw new DictConnectionException("Encountered an error in obtaining the list of strategies: " + e.getMessage());
+        }
         return set;
     }
 
