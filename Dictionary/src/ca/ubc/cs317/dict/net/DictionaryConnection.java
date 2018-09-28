@@ -4,6 +4,7 @@ import ca.ubc.cs317.dict.exception.DictConnectionException;
 import ca.ubc.cs317.dict.model.Database;
 import ca.ubc.cs317.dict.model.Definition;
 import ca.ubc.cs317.dict.model.MatchingStrategy;
+import ca.ubc.cs317.dict.util.DictStringParser;
 
 import java.io.*;
 import java.net.*;
@@ -19,6 +20,7 @@ public class DictionaryConnection {
     private Socket socket;
     private BufferedReader input;
     private PrintWriter output;
+    private DictStringParser dictStringParser;
 
     private Map<String, Database> databaseMap = new LinkedHashMap<String, Database>();
 
@@ -32,6 +34,7 @@ public class DictionaryConnection {
      */
     public DictionaryConnection(String host, int port) throws DictConnectionException {
         try{
+            dictStringParser = new DictStringParser();
             socket = new Socket(host, port);
             output = new PrintWriter(socket.getOutputStream(), true);
             input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
@@ -89,9 +92,92 @@ public class DictionaryConnection {
     public synchronized Collection<Definition> getDefinitions(String word, Database database) throws DictConnectionException {
         Collection<Definition> set = new ArrayList<>();
         getDatabaseList(); // Ensure the list of databases has been populated
+        System.out.println("in getDefinitions()");
+        System.out.println("DEFINE " + database.getName() + " " + word);
+        this.output.println("DEFINE " + database.getName() + " " + word);
+        try{
+            String in = this.input.readLine();
+            String statusCode;
+            String[] inputSplitIntoDictAtoms;
+            readInput:
+            while(in != null) {
+                inputSplitIntoDictAtoms = dictStringParser.splitAtoms(in);
+                // splitAtoms returns an empty array if input line is "." or null
+                statusCode = inputSplitIntoDictAtoms.length > 0 ? inputSplitIntoDictAtoms[0] : in;
+                switch(statusCode){
+                    case "550": // Invalid database
+                        throw new Exception("Invalid Database provided with name: " + database.getName());
+                    case "552": // No matches found
+                    case "250":
+                        break readInput; //Breaks out of the while loop
+                    case "150": // 150 3 definitions retreived
+                        // This is followed by a long statement like:
 
-        // TODO Add your code here
-
+                        // 150 3 definitions retrieved
+                        //151 "Obligatory" gcide "The Collaborative International Dictionary of English v.0.48"
+                        //Obligatory \Ob"li*ga*to*ry\, a. [L. obligatorius: cf. F.
+                        //   obligatoire.]
+                        //   Binding in law or conscience; imposing duty or obligation;
+                        //   requiring performance or forbearance of some act; -- often
+                        //   followed by on or upon; as, obedience is obligatory on a
+                        //   soldier.
+                        //   [1913 Webster]
+                        //
+                        //         As long as the law is obligatory, so long our obedience
+                        //         is due.                                  --Jer. Taylor.
+                        //   [1913 Webster]
+                        //.
+                        //151 "obligatory" wn "WordNet (r) 3.0 (2006)"
+                        //obligatory
+                        //    adj 1: morally or legally constraining or binding; "attendance
+                        //           is obligatory"; "an obligatory contribution" [ant:
+                        //           {optional}]
+                        //    2: required by obligation or compulsion or convention; "he made
+                        //       all the obligatory apologies"
+                        //.
+                        //151 "obligatory" moby-thesaurus "Moby Thesaurus II by Grady Ward, 1.0"
+                        //38 Moby Thesaurus words for "obligatory":
+                        //   absolute, binding, choiceless, compulsory, conclusive, de rigueur,
+                        //   decisive, decretory, demanded, dictated, entailed, essential,
+                        //   exigent, final, hard-and-fast, imperative, imperious, importunate,
+                        //   imposed, incumbent, indispensable, inevitable, involuntary,
+                        //   irrevocable, mandated, mandatory, must, necessary, necessitous,
+                        //   peremptory, prescript, prescriptive, required, requisite, ultimate,
+                        //   urgent, without appeal, without choice
+                        //
+                        //
+                        //.
+                        //250 ok [d/m/c = 3/0/123; 0.000r 0.000u 0.000s]
+                        int numberOfDefinitions = Integer.parseInt(inputSplitIntoDictAtoms[1]);
+                        for(int i = 0; i < numberOfDefinitions; i++){
+                            in = this.input.readLine(); // 151 "obligatory" moby-thesaurus "Moby Thesaurus II by Grady Ward, 1.0"
+                            inputSplitIntoDictAtoms = dictStringParser.splitAtoms(in);
+                            String definitionDatabaseName = inputSplitIntoDictAtoms[2];
+                            String definitionWord = inputSplitIntoDictAtoms[1];
+                            Database definitionDatabase = databaseMap.get(definitionDatabaseName);
+                            Definition definition = new Definition(definitionWord, definitionDatabase);
+                            while(true){
+                                in = this.input.readLine();
+                                if(in.equals(".")){ //Definiton ends with "."
+                                    break;
+                                }
+                                definition.appendDefinition(in);
+                            }
+                            set.add(definition);
+                        }
+                        break;
+                    case ".":
+                        break;
+                    case "501":
+                        throw new Exception("Invalid syntax. Illegal parameters");
+                    default:
+                        throw new Exception("Encountered an unexpected error");
+                }
+                in = this.input.readLine();
+            }
+        } catch (Exception e){
+            throw new DictConnectionException("Encountered an error in obtaining words that match patter: " + e.getMessage());
+        }
         return set;
     }
 
@@ -106,10 +192,48 @@ public class DictionaryConnection {
      * @throws DictConnectionException If the connection was interrupted or the messages don't match their expected value.
      */
     public synchronized Set<String> getMatchList(String word, MatchingStrategy strategy, Database database) throws DictConnectionException {
+        System.out.println("in getMatchList()");
         Set<String> set = new LinkedHashSet<>();
-
-        // TODO Add your code here
-
+        System.out.println("MATCH " + database.getName() + " " + strategy.getName() + " " + word);
+        this.output.println("MATCH " + database.getName() + " " + strategy.getName() + " " + word);
+        try{
+            String in = this.input.readLine();
+            String matchingWord, statusCode;
+            String[] inputSplitIntoDictAtoms;
+            readInput:
+                while(in != null) {
+                    inputSplitIntoDictAtoms = dictStringParser.splitAtoms(in);
+                    // splitAtoms returns an empty array if input line is "." or null
+                    statusCode = inputSplitIntoDictAtoms.length > 0 ? inputSplitIntoDictAtoms[0] : in;
+                    switch(statusCode){
+                        case "550": // Invalid database
+                            throw new Exception("Invalid Database provided with name: " + database.getName());
+                        case "551": // Invalid strategy
+                            throw new Exception("Invalid Strategy provided with name: " + strategy.getName());
+                        case "552": // No matches found
+                        case "250":
+                            break readInput; //Breaks out of the while loop
+                        case "152": // 152 4 matches found
+                            int numberOfWords = Integer.parseInt(inputSplitIntoDictAtoms[1]);
+                            for(int i = 0; i < numberOfWords; i++){
+                                in = this.input.readLine();
+                                inputSplitIntoDictAtoms = dictStringParser.splitAtoms(in);
+                                matchingWord = inputSplitIntoDictAtoms[1];
+                                set.add(matchingWord);
+                            }
+                            break;
+                        case ".":
+                            break;
+                        case "501":
+                            throw new Exception("Invalid syntax. Illegal parameters");
+                        default:
+                            throw new Exception("Encountered an unexpected error");
+                    }
+                    in = this.input.readLine();
+                }
+        } catch (Exception e){
+            throw new DictConnectionException("Encountered an error in obtaining words that match patter: " + e.getMessage());
+        }
         return set;
     }
 
@@ -124,23 +248,37 @@ public class DictionaryConnection {
         if (!databaseMap.isEmpty()) return databaseMap.values();
         this.output.println("SHOW DB");
         try{
-        	String in;
-        	in = this.input.readLine();
-        	if(!in.startsWith("110")) {
-        		throw new Exception("There was a problem with the server");
-        	}
-        	while((in = this.input.readLine()) != null) {
-        		if(in.equals(".")){
-        			return databaseMap.values();
-        		}
-        		String dbName = in.substring(0, in.indexOf(" "));
-        		String dbDescription = in.substring(in.indexOf(" ") + 1, in.length());
-        		databaseMap.put(dbName, new Database(dbName, dbDescription));
-        	}
+        	String in, statusCode, dbName, dbDescription;
+            String[] splitAtoms;
+            in = this.input.readLine();
+        	readInput: while(in != null ) { // This while loop has label readInput
+                splitAtoms = dictStringParser.splitAtoms(in);
+                // splitAtoms returns an empty array if input line is "." or null
+                statusCode = splitAtoms.length > 0 ? splitAtoms[0] : in;
+                switch(statusCode){
+                    case("110"): // databases found no error. Staement: 110 72 databases present
+                        int numberOfDatabases = Integer.parseInt(splitAtoms[1]);
+                        for(int i = 0; i < numberOfDatabases; i++){
+                            in = this.input.readLine();
+                            splitAtoms = dictStringParser.splitAtoms(in);
+                            dbName = splitAtoms[0];
+                            dbDescription = splitAtoms[1];
+                            databaseMap.put(dbName, new Database(dbName, dbDescription));
+                        }
+                        break;
+                    case("."):
+                        break;
+                    case("250"):
+                        break readInput; // This leaves the whole for loop otherwise the this.input.readLine() waits forever
+                    case("554"):
+                        System.out.println("No databases present");
+                        break readInput;
+                }
+                in = this.input.readLine();
+            }
         } catch (Exception e){
         	throw new DictConnectionException("Encountered an error in obtaining the list of databases: " + e.getMessage());
         }
-
         return databaseMap.values();
     }
 
@@ -151,32 +289,41 @@ public class DictionaryConnection {
      */
     public synchronized Set<MatchingStrategy> getStrategyList() throws DictConnectionException {
     	System.out.println("in getStrategyList()");
-        Set<MatchingStrategy> set = new LinkedHashSet<>();
+        Set<MatchingStrategy> strategySet = new LinkedHashSet<>();
         this.output.println("SHOW STRAT");
         try{
-        	String in;
-        	//check 250 success response
-        	in = this.input.readLine();
-        	if(!in.startsWith("250")) {
-        		throw new Exception("There was a problem with the server");
-        	}
-        	//check 111 response indicating # of responses found
-        	in = this.input.readLine();
-        	if(!in.startsWith("111")) {
-        		throw new Exception("there are currently no matching strategies available");
-        	}
-        	while((in = this.input.readLine()) != null) {
-        		if(in.equals(".")){
-        			return set;
-        		}
-        		String strategyName = in.substring(0, in.indexOf(" "));
-        		String strategyDescription = in.substring(in.indexOf(" ") + 1, in.length());
-        		set.add(new MatchingStrategy(strategyName, strategyDescription));
-        	}
+            String in, statusCode, strategyName, strategyDescription;
+            String[] splitAtoms;
+            in = this.input.readLine();
+            readInput: while(in != null ) { // This while loop has label readInput
+                splitAtoms = dictStringParser.splitAtoms(in);
+                // splitAtoms returns an empty array if input line is "." or null
+                statusCode = splitAtoms.length > 0 ? splitAtoms[0] : in;
+                switch(statusCode){
+                    case("111"): // databases found no error. Staement: 111 12 strategies present
+                        int numberOfStrategies = Integer.parseInt(splitAtoms[1]);
+                        for(int i = 0; i < numberOfStrategies; i++){
+                            in = this.input.readLine();
+                            splitAtoms = dictStringParser.splitAtoms(in);
+                            strategyName = splitAtoms[0];
+                            strategyDescription = splitAtoms[1];
+                            strategySet.add(new MatchingStrategy(strategyName, strategyDescription));
+                        }
+                        break;
+                    case("."):
+                        break;
+                    case("250"):
+                        break readInput; // This leaves the while loop. Otherwise the this.input.readLine() outside the switch waits forever for more input
+                    case("555"):
+                        System.out.println("No strategies available");
+                        break readInput;
+                }
+                in = this.input.readLine();
+            }
         } catch (Exception e){
         	throw new DictConnectionException("Encountered an error in obtaining the list of strategies: " + e.getMessage());
         }
-        return set;
+        return strategySet;
     }
 
 }
