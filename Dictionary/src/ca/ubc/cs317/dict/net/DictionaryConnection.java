@@ -34,7 +34,7 @@ public class DictionaryConnection {
      */
     public DictionaryConnection(String host, int port) throws DictConnectionException {
         try{
-            dictStringParser = new DictStringParser();
+            this.dictStringParser = new DictStringParser();
             this.socket = new Socket(host, port);
             this.output = new PrintWriter(socket.getOutputStream(), true);
             this.input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
@@ -90,9 +90,8 @@ public class DictionaryConnection {
     public synchronized Collection<Definition> getDefinitions(String word, Database database) throws DictConnectionException {
         Collection<Definition> set = new ArrayList<>();
         getDatabaseList(); // Ensure the list of databases has been populated
-        System.out.println("in getDefinitions()");
-        System.out.println("DEFINE " + database.getName() + " " + word);
-        this.output.println("DEFINE " + database.getName() + " " + word);
+        System.out.println("DEFINE " + database.getName() + " " + "\""+ word + "\"");
+        this.output.println("DEFINE " + database.getName() + " " + "\""+ word + "\"");
         try{
             String in = this.input.readLine();
             String statusCode;
@@ -206,7 +205,8 @@ public class DictionaryConnection {
      */
     public synchronized Set<String> getMatchList(String word, MatchingStrategy strategy, Database database) throws DictConnectionException {
         Set<String> set = new LinkedHashSet<>();
-        this.output.println("MATCH " + database.getName() + " " + strategy.getName() + " " + word);
+        System.out.println("MATCH " + database.getName() + " " + strategy.getName() + " " + "\"" + word + "\"");
+        this.output.println("MATCH " + database.getName() + " " + strategy.getName() + " " + "\"" + word + "\"");
         try{
             String in = this.input.readLine();
             String matchingWord, statusCode;
