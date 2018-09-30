@@ -90,7 +90,6 @@ public class DictionaryConnection {
     public synchronized Collection<Definition> getDefinitions(String word, Database database) throws DictConnectionException {
         Collection<Definition> set = new ArrayList<>();
         getDatabaseList(); // Ensure the list of databases has been populated
-        System.out.println("DEFINE " + database.getName() + " " + "\""+ word + "\"");
         this.output.println("DEFINE " + database.getName() + " " + "\""+ word + "\"");
         try{
             String in = this.input.readLine();
@@ -205,7 +204,6 @@ public class DictionaryConnection {
      */
     public synchronized Set<String> getMatchList(String word, MatchingStrategy strategy, Database database) throws DictConnectionException {
         Set<String> set = new LinkedHashSet<>();
-        System.out.println("MATCH " + database.getName() + " " + strategy.getName() + " " + "\"" + word + "\"");
         this.output.println("MATCH " + database.getName() + " " + strategy.getName() + " " + "\"" + word + "\"");
         try{
             String in = this.input.readLine();
@@ -218,9 +216,9 @@ public class DictionaryConnection {
                     statusCode = inputSplitIntoDictAtoms.length > 0 ? inputSplitIntoDictAtoms[0] : in;
                     switch(statusCode){
                         case "550": // Invalid database
-                            throw new Exception("Invalid Database provided with name: " + database.getName());
+                            break;
                         case "551": // Invalid strategy
-                            throw new Exception("Invalid Strategy provided with name: " + strategy.getName());
+                            break;
                         case "552": // No matches found
                         case "250":
                             break readInput; //Breaks out of the while loop
@@ -282,7 +280,6 @@ public class DictionaryConnection {
                     case("250"):
                         break readInput; // This leaves the whole for loop otherwise the this.input.readLine() waits forever
                     case("554"):
-                        System.out.println("No databases present");
                         break readInput;
                 }
                 in = this.input.readLine();
@@ -324,8 +321,7 @@ public class DictionaryConnection {
                         break;
                     case("250"):
                         break readInput; // This leaves the while loop. Otherwise the this.input.readLine() outside the switch waits forever for more input
-                    case("555"):
-                        System.out.println("No strategies available");
+                    case("555"): //No strategies available
                         break readInput;
                 }
                 in = this.input.readLine();
