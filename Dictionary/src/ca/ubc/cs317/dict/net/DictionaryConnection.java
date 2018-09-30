@@ -35,9 +35,9 @@ public class DictionaryConnection {
     public DictionaryConnection(String host, int port) throws DictConnectionException {
         try{
             dictStringParser = new DictStringParser();
-            socket = new Socket(host, port);
-            output = new PrintWriter(socket.getOutputStream(), true);
-            input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            this.socket = new Socket(host, port);
+            this.output = new PrintWriter(socket.getOutputStream(), true);
+            this.input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             String in = input.readLine();
             if(!in.startsWith("220")){
                 throw new DictConnectionException("Could not Connect.  Please try again.");        
@@ -65,18 +65,16 @@ public class DictionaryConnection {
      *
      */
     public synchronized void close() {
-        System.out.println("Terminating connection to dict server");
+        System.out.println("Terminating connection to dict server.");
         this.output.println("QUIT");
         try{
             this.socket.close();
             this.input.close();
             this.output.close();
         } catch(Exception e){
-            //TODO what should I do with this exception?
-            System.out.println("There was a problem disconnecting O.o");
+            System.out.println("There was a problem disconnecting.");
         }
         System.out.println("Connection terminated");
-        // TODO Add your code here
     }
 
     /** Requests and retrieves all definitions for a specific word.
@@ -108,9 +106,30 @@ public class DictionaryConnection {
                     case "550": // Invalid database
                         throw new Exception("Invalid Database provided with name: " + database.getName());
                     case "552": // No matches found
+                        System.out.println("No matches found");
                     case "250":
                         break readInput; //Breaks out of the while loop
-                    case "150": // 150 3 definitions retreived
+                    case "150": // Got definitions
+                        int numberOfDefinitions = Integer.parseInt(inputSplitIntoDictAtoms[1]);
+                        set = parseDefinitions(Integer.parseInt(inputSplitIntoDictAtoms[1]));
+                        break;
+                    case ".":
+                        break;
+                    case "501":
+                        throw new Exception("Invalid syntax. Illegal parameters");
+                    default:
+                        throw new Exception("Encountered an unexpected error");
+                }
+                in = this.input.readLine();
+            }
+        } catch (Exception e){
+            throw new DictConnectionException("Encountered an error while finding definitions: " + e.getMessage());
+        }
+        return set;
+    }
+
+
+    private ArrayList<Definition> parseDefinitions(int numberOfDefinitions) throws DictConnectionException {
                         // This is followed by a long statement like:
 
                         // 150 3 definitions retrieved
@@ -148,37 +167,31 @@ public class DictionaryConnection {
                         //
                         //.
                         //250 ok [d/m/c = 3/0/123; 0.000r 0.000u 0.000s]
-                        int numberOfDefinitions = Integer.parseInt(inputSplitIntoDictAtoms[1]);
-                        for(int i = 0; i < numberOfDefinitions; i++){
-                            in = this.input.readLine(); // 151 "obligatory" moby-thesaurus "Moby Thesaurus II by Grady Ward, 1.0"
-                            inputSplitIntoDictAtoms = dictStringParser.splitAtoms(in);
-                            String definitionDatabaseName = inputSplitIntoDictAtoms[2];
-                            String definitionWord = inputSplitIntoDictAtoms[1];
-                            Database definitionDatabase = databaseMap.get(definitionDatabaseName);
-                            Definition definition = new Definition(definitionWord, definitionDatabase);
-                            while(true){
-                                in = this.input.readLine();
-                                if(in.equals(".")){ //Definiton ends with "."
-                                    break;
-                                }
-                                definition.appendDefinition(in);
-                            }
-                            set.add(definition);
-                        }
-                        break;
-                    case ".":
-                        break;
-                    case "501":
-                        throw new Exception("Invalid syntax. Illegal parameters");
-                    default:
-                        throw new Exception("Encountered an unexpected error");
+
+        try{
+            ArrayList<Definition> set = new ArrayList<Definition>();
+            String in;
+            String[] inputSplitIntoDictAtoms;
+            for(int i = 0; i < numberOfDefinitions; i++){
+                in = this.input.readLine(); // 151 "obligatory" moby-thesaurus "Moby Thesaurus II by Grady Ward, 1.0"
+                inputSplitIntoDictAtoms = dictStringParser.splitAtoms(in);
+                String definitionDatabaseName = inputSplitIntoDictAtoms[2];
+                String definitionWord = inputSplitIntoDictAtoms[1];
+                Database definitionDatabase = databaseMap.get(definitionDatabaseName);
+                Definition definition = new Definition(definitionWord, definitionDatabase);
+                while(true){
+                    in = this.input.readLine();
+                    if(in.equals(".")){ //Definiton ends with "."
+                         break;
+                    }
+                    definition.appendDefinition(in);
                 }
-                in = this.input.readLine();
+                set.add(definition);
             }
-        } catch (Exception e){
-            throw new DictConnectionException("Encountered an error in obtaining words that match patter: " + e.getMessage());
+            return set;
+        } catch (Exception e) {
+            throw new DictConnectionException("There was an error while parsing the definitions");
         }
-        return set;
     }
 
     /** Requests and retrieves a list of matches for a specific word pattern.
@@ -192,9 +205,7 @@ public class DictionaryConnection {
      * @throws DictConnectionException If the connection was interrupted or the messages don't match their expected value.
      */
     public synchronized Set<String> getMatchList(String word, MatchingStrategy strategy, Database database) throws DictConnectionException {
-        System.out.println("in getMatchList()");
         Set<String> set = new LinkedHashSet<>();
-        System.out.println("MATCH " + database.getName() + " " + strategy.getName() + " " + word);
         this.output.println("MATCH " + database.getName() + " " + strategy.getName() + " " + word);
         try{
             String in = this.input.readLine();
@@ -288,7 +299,6 @@ public class DictionaryConnection {
      * @throws DictConnectionException If the connection was interrupted or the messages don't match their expected value.
      */
     public synchronized Set<MatchingStrategy> getStrategyList() throws DictConnectionException {
-    	System.out.println("in getStrategyList()");
         Set<MatchingStrategy> strategySet = new LinkedHashSet<>();
         this.output.println("SHOW STRAT");
         try{
