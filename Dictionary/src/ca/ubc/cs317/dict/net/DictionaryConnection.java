@@ -64,14 +64,18 @@ public class DictionaryConnection {
      * may happen while sending the message, receiving its reply, or closing the connection.
      *
      */
-    public synchronized void close() {
+    public synchronized void close(){
         System.out.println("Terminating connection to dict server.");
         this.output.println("QUIT");
-        this.input.close();
-        this.output.close();
-        this.socket.close();
-        System.out.println("Connection terminated");
-        System.exit(0);
+        try {
+            this.input.close();
+            this.output.close();
+            this.socket.close();
+            System.out.println("Connection terminated");
+            System.exit(0);
+        } catch(Exception e) {
+            System.out.println("Error while terminating presentation.");
+        }
     }
 
     /** Requests and retrieves all definitions for a specific word.
@@ -106,7 +110,7 @@ public class DictionaryConnection {
                         break readInput; //Breaks out of the while loop
                     case "150": // Got definitions
                         int numberOfDefinitions = Integer.parseInt(inputSplitIntoDictAtoms[1]);
-                        set = parseDefinitions(Integer.parseInt(numberOfDefinitions));
+                        set = parseDefinitions(numberOfDefinitions);
                         break;
                     case ".":
                         break;
