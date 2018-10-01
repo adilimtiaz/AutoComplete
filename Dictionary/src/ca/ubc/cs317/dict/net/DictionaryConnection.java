@@ -67,14 +67,11 @@ public class DictionaryConnection {
     public synchronized void close() {
         System.out.println("Terminating connection to dict server.");
         this.output.println("QUIT");
-        try{
-            this.socket.close();
-            this.input.close();
-            this.output.close();
-        } catch(Exception e){
-            System.out.println("There was a problem disconnecting.");
-        }
+        this.input.close();
+        this.output.close();
+        this.socket.close();
         System.out.println("Connection terminated");
+        System.exit(0);
     }
 
     /** Requests and retrieves all definitions for a specific word.
@@ -109,7 +106,7 @@ public class DictionaryConnection {
                         break readInput; //Breaks out of the while loop
                     case "150": // Got definitions
                         int numberOfDefinitions = Integer.parseInt(inputSplitIntoDictAtoms[1]);
-                        set = parseDefinitions(Integer.parseInt(inputSplitIntoDictAtoms[1]));
+                        set = parseDefinitions(Integer.parseInt(numberOfDefinitions));
                         break;
                     case ".":
                         break;
@@ -216,9 +213,9 @@ public class DictionaryConnection {
                     statusCode = inputSplitIntoDictAtoms.length > 0 ? inputSplitIntoDictAtoms[0] : in;
                     switch(statusCode){
                         case "550": // Invalid database
-                            break;
+                            throw new Exception("Invalid database used with name: " + database.getName());
                         case "551": // Invalid strategy
-                            break;
+                            throw new Exception("Invalid Strategy used with name: " + strategy.getName());
                         case "552": // No matches found
                         case "250":
                             break readInput; //Breaks out of the while loop
@@ -241,7 +238,7 @@ public class DictionaryConnection {
                     in = this.input.readLine();
                 }
         } catch (Exception e){
-            throw new DictConnectionException("Encountered an error in obtaining words that match patter: " + e.getMessage());
+            throw new DictConnectionException(e.getMessage());
         }
         return set;
     }
